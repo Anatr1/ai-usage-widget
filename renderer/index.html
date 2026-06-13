@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'" />
+  <title>AI Usage</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="card" id="card">
+    <header class="titlebar">
+      <span class="title">AI Usage</span>
+      <span class="titlebar-buttons">
+        <button id="btn-settings" title="Settings">&#x2699;</button>
+        <button id="btn-refresh" title="Refresh now">&#x21bb;</button>
+        <button id="btn-pin" title="Toggle always on top">&#x1f4cc;</button>
+        <button id="btn-hide" title="Hide to tray">&#x2715;</button>
+      </span>
+    </header>
+
+    <section class="settings" id="settings-panel" hidden>
+      <div class="settings-row">
+        <span class="settings-label">Bars show</span>
+        <div class="seg" id="barmode-seg">
+          <button class="seg-btn" data-mode="fuel">Remaining</button>
+          <button class="seg-btn" data-mode="usage">Used</button>
+        </div>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Layout</span>
+        <div class="seg" id="layout-seg">
+          <button class="seg-btn" data-layout="bars">Bars</button>
+          <button class="seg-btn" data-layout="gauge">Rings</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="provider" id="gauge-section" hidden>
+      <div class="gauge-wrap">
+        <div id="gauge-svg"></div>
+        <div id="gauge-legend"></div>
+      </div>
+      <div id="gauge-notes"></div>
+    </section>
+
+    <section class="provider" id="claude-section">
+      <div class="provider-header">
+        <span class="dot claude-dot"></span>
+        <span class="provider-name">Claude Code</span>
+        <span class="plan" id="claude-plan"></span>
+      </div>
+      <div class="provider-body" id="claude-body"></div>
+    </section>
+
+    <section class="provider" id="codex-section">
+      <div class="provider-header">
+        <span class="dot codex-dot"></span>
+        <span class="provider-name">Codex</span>
+        <span class="plan" id="codex-plan"></span>
+      </div>
+      <div class="provider-body" id="codex-body"></div>
+    </section>
+
+    <footer>
+      <span id="status">loading…</span>
+    </footer>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

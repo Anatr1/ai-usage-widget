@@ -1,0 +1,40 @@
+{
+  "name": "usage-widget",
+  "version": "1.0.0",
+  "description": "Floating desktop widget showing your Claude Code and Codex usage windows (5h / weekly) with reset times. Windows, macOS, and Linux.",
+  "main": "main.js",
+  "files": [
+    "assets/",
+    "docs/",
+    "renderer/",
+    "scripts/",
+    "src/",
+    "main.js",
+    "preload.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "node scripts/install-electron.mjs",
+    "test": "node --test",
+    "gen-icon": "node scripts/gen-icon.js"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "keywords": [
+    "electron",
+    "widget",
+    "claude-code",
+    "codex",
+    "usage",
+    "rate-limit",
+    "tray"
+  ],
+  "author": "AI Usage Widget contributors",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^42.4.0"
+  }
+}
