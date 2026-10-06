@@ -1,6 +1,6 @@
 {
   "name": "usage-widget",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Floating desktop widget showing your Claude Code and Codex usage windows (5h / weekly) with reset times. Windows, macOS, and Linux.",
   "main": "main.js",
   "files": [

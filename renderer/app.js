@@ -6,12 +6,40 @@ const TICK_MS = 30_000; // re-render countdowns every 30s
 let lastData = null;
 let barMode = 'fuel'; // 'fuel' = bars show remaining and drain; 'usage' = bars fill as you consume
 let layout = 'bars'; // 'bars' = stacked bars per provider; 'gauge' = four concentric rings
+let minimalistic = false;
 
 const $ = (id) => document.getElementById(id);
 
 function fitWindow() {
-  requestAnimationFrame(() => window.widget.resize($('card').offsetHeight));
+  requestAnimationFrame(() => {
+    const card = $('card');
+    const panel = $('settings-panel');
+    const expanded = !panel.hidden;
+    // Measure the closed view as well, so opening settings never overwrites its size.
+    panel.hidden = true;
+    card.classList.remove('settings-open');
+    const closed = { width: card.offsetWidth, height: card.offsetHeight };
+    panel.hidden = !expanded;
+    card.classList.toggle('settings-open', expanded);
+    window.widget.resize({
+      ...closed,
+      expandedHeight: expanded ? card.offsetHeight : null,
+      expandedWidth: expanded ? card.offsetWidth : null,
+    });
+    scaleCard();
+  });
 }
+
+function scaleCard() {
+  const card = $('card');
+  const scale = Math.min(innerWidth / card.offsetWidth, innerHeight / card.offsetHeight);
+  card.style.transform = `translate(-50%, -50%) scale(${scale})`;
+}
+
+window.addEventListener('resize', scaleCard);
+window.widget.onHoverChanged((hovered) => {
+  document.body.classList.toggle('widget-hovered', hovered);
+});
 
 function fmtCountdown(ms) {
   const mins = Math.max(0, Math.round(ms / 60_000));
@@ -67,7 +95,7 @@ function renderRow(label, w, accent) {
   row.className = 'row';
   const stats = windowStats(w);
   if (!stats) {
-    row.innerHTML = `<div class="row-top"><span class="row-label"></span><span class="row-reset">no data</span></div>`;
+    row.innerHTML = `<div class="row-top"><span class="row-label"></span><div class="bar unavailable"></div><span class="row-reset">no data</span></div>`;
     row.querySelector('.row-label').textContent = label;
     return row;
   }
@@ -115,6 +143,10 @@ function renderProvider(bodyId, planId, data, fiveHourLabel, weekLabel, accent) 
   $(planId).textContent = (data && data.plan) || '';
 
   if (!data || data.error) {
+    if (minimalistic) {
+      body.appendChild(renderRow(fiveHourLabel, null, accent));
+      body.appendChild(renderRow(weekLabel, null, accent));
+    }
     const err = document.createElement('div');
     err.className = 'error';
     err.textContent = data ? data.error : 'no data';
@@ -123,7 +155,7 @@ function renderProvider(bodyId, planId, data, fiveHourLabel, weekLabel, accent) 
   }
 
   body.appendChild(renderRow(windowLabel(fiveHourLabel, data.fiveHour && data.fiveHour.windowMinutes), data.fiveHour, accent));
-  body.appendChild(renderRow(windowLabel(weekLabel, data.week && data.week.windowMinutes), data.week, accent));
+  body.appendChild(renderRow(windowLabel(weekLabel, data.week && data.week.windowMinutes), data.week, `${accent || ''} week`));
 
   if (data.extraUsage) {
     const note = document.createElement('div');
@@ -250,7 +282,9 @@ function renderGauge() {
 }
 
 function render() {
-  if (!lastData) return;
+  $('card').classList.toggle('minimalistic', minimalistic);
+  $('card').classList.toggle('rings', layout === 'gauge');
+  if (!lastData) lastData = {};
   const gaugeMode = layout === 'gauge';
   $('claude-section').hidden = gaugeMode;
   $('codex-section').hidden = gaugeMode;
@@ -298,6 +332,11 @@ function initSettings() {
     $('btn-settings').classList.toggle('active', !panel.hidden);
     fitWindow();
   });
+  $('minimalistic-toggle').addEventListener('change', async (e) => {
+    const s = await window.widget.setSettings({ minimalistic: e.target.checked });
+    minimalistic = s.minimalistic;
+    render();
+  });
   for (const b of document.querySelectorAll('#barmode-seg .seg-btn')) {
     b.addEventListener('click', async () => {
       const s = await window.widget.setSettings({ barMode: b.dataset.mode });
@@ -316,6 +355,29 @@ function initSettings() {
   }
 }
 
+// Explicit handles also work on transparent Linux windows, where native resize
+// decorations aren't always available. Pointer capture keeps corner drags alive.
+for (const handle of document.querySelectorAll('.resize-handle')) {
+  handle.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    handle.setPointerCapture(e.pointerId);
+    window.widget.startResize(handle.dataset.edge);
+  });
+  handle.addEventListener('pointermove', (e) => {
+    if (handle.hasPointerCapture(e.pointerId)) window.widget.updateResize();
+  });
+  const end = (e) => {
+    if (handle.hasPointerCapture(e.pointerId)) {
+      window.widget.updateResize();
+      handle.releasePointerCapture(e.pointerId);
+    }
+    window.widget.endResize();
+  };
+  handle.addEventListener('pointerup', end);
+  handle.addEventListener('pointercancel', end);
+  handle.addEventListener('lostpointercapture', () => window.widget.endResize());
+}
+
 $('btn-refresh').addEventListener('click', () => refresh(true));
 $('btn-hide').addEventListener('click', () => window.widget.hide());
 window.widget.onRefreshRequested(() => refresh(true));
@@ -327,10 +389,13 @@ window.widget.onRefreshRequested(() => refresh(true));
     const s = await window.widget.getSettings();
     barMode = s.barMode || 'fuel';
     layout = s.layout || 'bars';
+    minimalistic = !!s.minimalistic;
   } catch {
     /* defaults are fine */
   }
   syncSegButtons();
+  $('minimalistic-toggle').checked = minimalistic;
+  render();
   refresh();
   setInterval(() => refresh(false), REFRESH_MS);
   setInterval(render, TICK_MS);

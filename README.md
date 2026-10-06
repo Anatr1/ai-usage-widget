@@ -15,6 +15,10 @@ time each window resets.
 - **Two display styles** — stacked bars, or four concentric dashboard-style rings.
 - **Fuel or usage mode** — bars/rings can show *remaining* capacity (full → drains, like a fuel
   gauge) or *used* capacity (empty → fills).
+- **Minimalistic mode** — just four closely stacked bars or the rings on a transparent
+  background. Hover to reveal settings, refresh, pin and hide controls.
+- **Resizable** — drag any edge or corner to scale the widget. Each layout and display mode
+  remembers its own size.
 - **Warning colors** — amber when a window drops to 30% remaining, red at 10%.
 - **Tray integration** — hide/show with a click; right-click for always-on-top, autostart,
   refresh, quit.
@@ -83,7 +87,10 @@ position is remembered.
 ## Usage
 
 - **Drag** the title bar to move the widget.
-- **⚙** opens settings: bar style (Remaining/Used) and layout (Bars/Rings).
+- **⚙** opens settings: bar style (Remaining/Used), layout (Bars/Rings), and Minimalistic.
+- **Resize** by dragging an edge or corner. In Minimalistic mode, drag the graphics to move
+  the widget and hover over them to reveal the controls. Opening settings temporarily expands
+  the widget; closing settings restores its size.
 - **⟳** forces an immediate refresh (bypasses the poll throttle).
 - **📌** toggles always-on-top.
 - **✕** hides to the tray. Click the tray icon to bring it back.
@@ -99,7 +106,7 @@ Autostart is opt-in. Enable or disable it from the tray menu:
 
 ### Configuration file
 
-Settings (position, pin, layout, bar mode, cached usage) live in `widget-config.json` under:
+Settings (position, sizes, pin, layout, bar mode, Minimalistic, cached usage) live in `widget-config.json` under:
 
 - Windows: `%APPDATA%\usage-widget\`
 - macOS: `~/Library/Application Support/usage-widget/`
@@ -127,6 +134,7 @@ src/claude.js        Anthropic OAuth usage fetch, token refresh, cache + 429 bac
 src/codex.js         Codex session-log scanner (latest rate_limits snapshot)
 src/autostart.js     Cross-platform start-at-login
 src/store.js         Tiny JSON config store
+src/window-size.js   Presentation sizes and edge/corner resize geometry
 renderer/            Widget UI (HTML/CSS/JS, no framework)
 scripts/gen-icon.js  Dependency-free PNG icon generator
 scripts/install-electron.mjs  postinstall: fetches the Electron binary (works around

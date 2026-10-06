@@ -7,18 +7,105 @@
 
 body {
   background: transparent;
+  height: 100vh;
   font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
   color: #e8e8ec;
   overflow: hidden;
 }
 
+[hidden] { display: none !important; }
+
 .card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 330px;
+  transform-origin: center;
   background: rgba(22, 22, 28, 0.97);
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 14px;
   padding: 10px 14px 8px;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
 }
+
+/* Minimal views retain the four windows in their usual provider/window order. */
+.minimalistic {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  padding: 8px;
+  -webkit-app-region: drag;
+}
+
+.minimalistic .title,
+.minimalistic .provider-header,
+.minimalistic .row-label,
+.minimalistic .row-pct,
+.minimalistic .row-reset,
+.minimalistic .note,
+.minimalistic .error,
+.minimalistic footer,
+.minimalistic #gauge-legend,
+.minimalistic #gauge-notes { display: none; }
+
+.minimalistic .provider { border: 0; padding: 0; }
+.minimalistic .row { margin: 0 0 3px; }
+.minimalistic .row:last-child { margin-bottom: 3px; }
+.minimalistic #codex-body .row:last-child { margin-bottom: 0; }
+.minimalistic .bar { height: 7px; }
+.minimalistic .bar.unavailable { opacity: 0.45; }
+.minimalistic.rings { width: 168px; }
+.minimalistic .gauge-wrap { justify-content: center; gap: 0; }
+
+.minimalistic .titlebar {
+  position: absolute;
+  z-index: 2;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 3px;
+  border-radius: 8px;
+  background: rgba(22, 22, 28, 0.94);
+  opacity: 0;
+  visibility: hidden;
+}
+
+.minimalistic.rings .titlebar { top: 8px; transform: none; }
+.widget-hovered .minimalistic .titlebar,
+.minimalistic:has(.titlebar-buttons button:focus-visible) .titlebar,
+.minimalistic.settings-open .titlebar { opacity: 1; visibility: visible; }
+
+.minimalistic.settings-open {
+  width: 330px;
+  padding: 10px 14px 8px;
+  background: rgba(22, 22, 28, 0.97);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+.minimalistic.settings-open .titlebar {
+  position: static;
+  transform: none;
+  justify-content: flex-end;
+  padding: 0 0 8px;
+  background: none;
+}
+
+.settings { -webkit-app-region: no-drag; }
+#minimalistic-toggle { accent-color: #69b3a2; cursor: pointer; }
+
+/* Invisible hit areas leave the graphics clean while exposing every edge. */
+.resize-handle { position: fixed; z-index: 10; -webkit-app-region: no-drag; }
+.resize-handle.n, .resize-handle.s { left: 10px; right: 10px; height: 5px; cursor: ns-resize; }
+.resize-handle.n { top: 0; }
+.resize-handle.s { bottom: 0; }
+.resize-handle.e, .resize-handle.w { top: 10px; bottom: 10px; width: 5px; cursor: ew-resize; }
+.resize-handle.e { right: 0; }
+.resize-handle.w { left: 0; }
+.resize-handle.ne, .resize-handle.nw, .resize-handle.se, .resize-handle.sw { width: 10px; height: 10px; }
+.resize-handle.ne { top: 0; right: 0; cursor: nesw-resize; }
+.resize-handle.nw { top: 0; left: 0; cursor: nwse-resize; }
+.resize-handle.se { bottom: 0; right: 0; cursor: nwse-resize; }
+.resize-handle.sw { bottom: 0; left: 0; cursor: nesw-resize; }
 
 /* ----- title bar ----- */
 
@@ -189,12 +276,20 @@ body {
 .bar-fill {
   height: 100%;
   border-radius: 4px;
-  background: #34d399;
+  background: var(--bar-color, #69b3a2);
   transition: width 0.4s ease;
 }
 
 .bar-fill.claude {
-  background: #d97757;
+  --bar-color: #d97757;
+}
+
+.bar-fill.week {
+  --bar-color: #a3d4c6;
+}
+
+.bar-fill.claude.week {
+  --bar-color: #e8a288;
 }
 
 .bar-fill.warn {

@@ -9,6 +9,10 @@ contextBridge.exposeInMainWorld('widget', {
   togglePin: () => ipcRenderer.invoke('widget:toggle-pin'),
   getPin: () => ipcRenderer.invoke('widget:get-pin'),
   hide: () => ipcRenderer.send('widget:hide'),
-  resize: (height) => ipcRenderer.send('widget:resize', height),
+  resize: (size) => ipcRenderer.send('widget:resize', size),
+  startResize: (edge) => ipcRenderer.send('widget:resize-start', edge),
+  updateResize: () => ipcRenderer.send('widget:resize-update'),
+  endResize: () => ipcRenderer.send('widget:resize-end'),
+  onHoverChanged: (cb) => ipcRenderer.on('widget:hover', (_event, hovered) => cb(hovered)),
   onRefreshRequested: (cb) => ipcRenderer.on('usage:refresh', cb),
 });
