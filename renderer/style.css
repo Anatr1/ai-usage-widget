@@ -51,7 +51,7 @@ body {
 .minimalistic .provider { border: 0; padding: 0; }
 .minimalistic .row { margin: 0 0 3px; }
 .minimalistic .row:last-child { margin-bottom: 3px; }
-.minimalistic #codex-body .row:last-child { margin-bottom: 0; }
+.minimalistic #gemini-body .row:last-child { margin-bottom: 0; }
 .minimalistic .bar { height: 7px; }
 .minimalistic .bar.unavailable { opacity: 0.45; }
 .minimalistic.rings { width: 168px; }
@@ -230,6 +230,10 @@ body {
   background: #69b3a2;
 }
 
+.gemini-dot {
+  background: #4d8eff;
+}
+
 .provider-name {
   font-size: 13px;
   font-weight: 600;
@@ -290,6 +294,14 @@ body {
 
 .bar-fill.claude.week {
   --bar-color: #e8a288;
+}
+
+.bar-fill.gemini {
+  --bar-color: #4d8eff;
+}
+
+.bar-fill.gemini.secondary {
+  --bar-color: #8bb8ff;
 }
 
 .bar-fill.warn {
@@ -369,7 +381,7 @@ body {
 }
 
 .g-label {
-  width: 17px;
+  width: 28px;
   font-weight: 600;
 }
 

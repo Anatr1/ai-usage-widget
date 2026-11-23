@@ -6,6 +6,7 @@ const path = require('path');
 
 const { getClaudeUsage } = require('./src/claude');
 const { getCodexUsage } = require('./src/codex');
+const { getGeminiUsage } = require('./src/gemini');
 const { getAutostart, setAutostart } = require('./src/autostart');
 const store = require('./src/store');
 const { sizeKey, minimumSize, resizeBounds } = require('./src/window-size');
@@ -204,7 +205,7 @@ function rebuildTrayMenu() {
 
 function createTray() {
   tray = new Tray(trayIcon());
-  tray.setToolTip('AI Usage Widget — Claude Code & Codex');
+  tray.setToolTip('AI Usage Widget — Claude Code, Codex & Gemini');
   tray.on('click', () => {
     if (win.isVisible()) win.hide();
     else {
@@ -218,10 +219,15 @@ function createTray() {
 }
 
 ipcMain.handle('usage:get', async (_e, force) => {
-  const [claude, codex] = await Promise.allSettled([getClaudeUsage(!!force), getCodexUsage()]);
+  const [claude, codex, gemini] = await Promise.allSettled([
+    getClaudeUsage(!!force),
+    getCodexUsage(),
+    getGeminiUsage(!!force),
+  ]);
   return {
     claude: claude.status === 'fulfilled' ? claude.value : { error: String(claude.reason) },
     codex: codex.status === 'fulfilled' ? codex.value : { error: String(codex.reason) },
+    gemini: gemini.status === 'fulfilled' ? gemini.value : { error: String(gemini.reason) },
   };
 });
 

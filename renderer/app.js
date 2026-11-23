@@ -137,15 +137,14 @@ function renderRow(label, w, accent) {
   return row;
 }
 
-function renderProvider(bodyId, planId, data, fiveHourLabel, weekLabel, accent) {
+function renderProvider(bodyId, planId, data, rows) {
   const body = $(bodyId);
   body.replaceChildren();
   $(planId).textContent = (data && data.plan) || '';
 
   if (!data || data.error) {
     if (minimalistic) {
-      body.appendChild(renderRow(fiveHourLabel, null, accent));
-      body.appendChild(renderRow(weekLabel, null, accent));
+      for (const r of rows) body.appendChild(renderRow(r.fallback, null, r.cls));
     }
     const err = document.createElement('div');
     err.className = 'error';
@@ -154,8 +153,11 @@ function renderProvider(bodyId, planId, data, fiveHourLabel, weekLabel, accent) 
     return;
   }
 
-  body.appendChild(renderRow(windowLabel(fiveHourLabel, data.fiveHour && data.fiveHour.windowMinutes), data.fiveHour, accent));
-  body.appendChild(renderRow(windowLabel(weekLabel, data.week && data.week.windowMinutes), data.week, `${accent || ''} week`));
+  for (const r of rows) {
+    const w = data[r.key] || (r.altKey && data[r.altKey]) || null;
+    const lbl = (w && w.label) || windowLabel(r.fallback, w && w.windowMinutes);
+    body.appendChild(renderRow(lbl, w, r.cls));
+  }
 
   if (data.extraUsage) {
     const note = document.createElement('div');
@@ -168,7 +170,8 @@ function renderProvider(bodyId, planId, data, fiveHourLabel, weekLabel, accent) 
   if (data.capturedAt && Date.now() - data.capturedAt > 2 * 60_000) {
     const note = document.createElement('div');
     note.className = 'note';
-    note.textContent = `snapshot from ${fmtAgo(data.capturedAt)} (updates when Codex runs)`;
+    const runner = data.source === 'antigravity' ? 'agy' : 'Codex';
+    note.textContent = `snapshot from ${fmtAgo(data.capturedAt)} (updates when ${runner} runs)`;
     body.appendChild(note);
   }
 
@@ -184,6 +187,11 @@ function renderProvider(bodyId, planId, data, fiveHourLabel, weekLabel, accent) 
 
 const GAUGE_START = 225; // degrees clockwise from 12 o'clock: opens at the bottom like a speedometer
 const GAUGE_SWEEP = 270;
+const GROUPS = [
+  { id: 'claude', name: 'Claude Code' },
+  { id: 'codex', name: 'Codex' },
+  { id: 'gemini', name: 'Gemini' },
+];
 
 function polar(cx, cy, r, deg) {
   const rad = ((deg - 90) * Math.PI) / 180;
@@ -204,45 +212,50 @@ function ringColor(stats, base) {
 function gaugeRings() {
   const claude = lastData.claude || {};
   const codex = lastData.codex || {};
+  const gemini = lastData.gemini || {};
+  const g1 = gemini.primary || gemini.pro || null;
+  const g2 = gemini.secondary || gemini.flash || null;
   return [
     { label: '5h', group: 'claude', stats: windowStats(claude.fiveHour), base: '#d97757' },
     { label: '7d', group: 'claude', stats: windowStats(claude.week), base: '#e8a288' },
     { label: '5h', group: 'codex', stats: windowStats(codex.fiveHour), base: '#69b3a2' },
     { label: '7d', group: 'codex', stats: windowStats(codex.week), base: '#a3d4c6' },
+    { label: (g1 && g1.label) || '5h', group: 'gemini', stats: windowStats(g1), base: '#4d8eff' },
+    { label: (g2 && g2.label) || '7d', group: 'gemini', stats: windowStats(g2), base: '#8bb8ff' },
   ];
 }
 
 function renderGauge() {
   const rings = gaugeRings();
-  const C = 70;
-  const radii = [62, 50, 38, 26];
+  const C = 78;
+  const radii = [70.5, 61, 51.5, 42, 32.5, 23];
 
   let svg = '';
   rings.forEach((ring, i) => {
     const r = radii[i];
-    svg += `<path d="${arcPath(C, C, r, GAUGE_START, GAUGE_START + GAUGE_SWEEP)}" stroke="rgba(255,255,255,0.09)" stroke-width="9" fill="none" stroke-linecap="round"/>`;
+    svg += `<path d="${arcPath(C, C, r, GAUGE_START, GAUGE_START + GAUGE_SWEEP)}" stroke="rgba(255,255,255,0.09)" stroke-width="6.5" fill="none" stroke-linecap="round"/>`;
     if (ring.stats) {
       ring.color = ringColor(ring.stats, ring.base);
       if (ring.stats.shown > 0.5) {
         const end = GAUGE_START + (GAUGE_SWEEP * ring.stats.shown) / 100;
-        svg += `<path d="${arcPath(C, C, r, GAUGE_START, end)}" stroke="${ring.color}" stroke-width="9" fill="none" stroke-linecap="round"/>`;
+        svg += `<path d="${arcPath(C, C, r, GAUGE_START, end)}" stroke="${ring.color}" stroke-width="6.5" fill="none" stroke-linecap="round"/>`;
       }
     }
   });
 
-  $('gauge-svg').innerHTML = `<svg width="150" height="150" viewBox="0 0 140 140">${svg}</svg>`;
+  $('gauge-svg').innerHTML = `<svg width="150" height="150" viewBox="0 0 156 156">${svg}</svg>`;
 
   const legend = $('gauge-legend');
   legend.replaceChildren();
-  for (const group of ['claude', 'codex']) {
+  for (const group of GROUPS) {
     const head = document.createElement('div');
     head.className = 'g-head';
     const dot = document.createElement('span');
-    dot.className = `dot ${group}-dot`;
-    head.append(dot, group === 'claude' ? 'Claude Code' : 'Codex');
+    dot.className = `dot ${group.id}-dot`;
+    head.append(dot, group.name);
     legend.appendChild(head);
 
-    for (const ring of rings.filter((r) => r.group === group)) {
+    for (const ring of rings.filter((r) => r.group === group.id)) {
       const row = document.createElement('div');
       row.className = 'g-row';
       const rdot = document.createElement('span');
@@ -272,12 +285,14 @@ function renderGauge() {
     el.textContent = text;
     notes.appendChild(el);
   };
-  const { claude, codex } = lastData;
-  if (claude && claude.error) addNote('error', `Claude: ${claude.error}`);
-  if (claude && claude.stale) addNote('note', `Claude: ${claude.staleReason || 'update failed'} — showing ${fmtAgo(claude.fetchedAt)} data`);
-  if (codex && codex.error) addNote('error', `Codex: ${codex.error}`);
-  if (codex && codex.capturedAt && Date.now() - codex.capturedAt > 2 * 60_000) {
-    addNote('note', `Codex snapshot from ${fmtAgo(codex.capturedAt)} (updates when Codex runs)`);
+  for (const g of GROUPS) {
+    const p = lastData[g.id];
+    if (p && p.error) addNote('error', `${g.name}: ${p.error}`);
+    if (p && p.stale) addNote('note', `${g.name}: ${p.staleReason || 'update failed'} — showing ${fmtAgo(p.fetchedAt)} data`);
+    if (p && p.capturedAt && Date.now() - p.capturedAt > 2 * 60_000) {
+      const runner = p.source === 'antigravity' ? 'agy' : g.name;
+      addNote('note', `${g.name} snapshot from ${fmtAgo(p.capturedAt)} (updates when ${runner} runs)`);
+    }
   }
 }
 
@@ -288,12 +303,23 @@ function render() {
   const gaugeMode = layout === 'gauge';
   $('claude-section').hidden = gaugeMode;
   $('codex-section').hidden = gaugeMode;
+  $('gemini-section').hidden = gaugeMode;
   $('gauge-section').hidden = !gaugeMode;
   if (gaugeMode) {
     renderGauge();
   } else {
-    renderProvider('claude-body', 'claude-plan', lastData.claude, '5h', '7d', 'claude');
-    renderProvider('codex-body', 'codex-plan', lastData.codex, '5h', '7d', '');
+    renderProvider('claude-body', 'claude-plan', lastData.claude, [
+      { key: 'fiveHour', fallback: '5h', cls: 'claude' },
+      { key: 'week', fallback: '7d', cls: 'claude week' },
+    ]);
+    renderProvider('codex-body', 'codex-plan', lastData.codex, [
+      { key: 'fiveHour', fallback: '5h', cls: '' },
+      { key: 'week', fallback: '7d', cls: 'week' },
+    ]);
+    renderProvider('gemini-body', 'gemini-plan', lastData.gemini, [
+      { key: 'primary', altKey: 'pro', fallback: '5h', cls: 'gemini' },
+      { key: 'secondary', altKey: 'flash', fallback: '7d', cls: 'gemini secondary' },
+    ]);
   }
   $('status').textContent = `updated ${fmtClock(Date.now())}`;
   fitWindow();
@@ -304,7 +330,11 @@ async function refresh(force = false) {
   try {
     lastData = await window.widget.getUsage(force);
   } catch (err) {
-    lastData = { claude: { error: String(err) }, codex: { error: String(err) } };
+    lastData = {
+      claude: { error: String(err) },
+      codex: { error: String(err) },
+      gemini: { error: String(err) },
+    };
   }
   render();
 }

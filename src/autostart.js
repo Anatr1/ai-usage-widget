@@ -34,7 +34,7 @@ function setAutostart(enable) {
             '[Desktop Entry]',
             'Type=Application',
             'Name=AI Usage Widget',
-            'Comment=Claude Code & Codex usage windows',
+            'Comment=Claude Code, Codex & Gemini usage windows',
             `Exec=${cmd}`,
             'X-GNOME-Autostart-enabled=true',
           ].join('\n') + '\n',

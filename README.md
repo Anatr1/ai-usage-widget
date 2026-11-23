@@ -1,8 +1,7 @@
 # AI Usage Widget
 
 A small, always-on-top desktop widget for **Windows, macOS and Linux** that shows your current
-**Claude Code** and **Codex** usage windows — the 5-hour and weekly rate limits — with the exact
-time each window resets.
+**Claude Code**, **Codex**, and **Gemini** usage windows — with the exact time each window resets.
 
 | Bars layout | Rings layout |
 |---|---|
@@ -10,12 +9,11 @@ time each window resets.
 
 ## Features
 
-- **Both providers at a glance** — Claude Code (5h + weekly) and Codex (5h + weekly), each with
-  percentage and a local-time reset countdown.
-- **Two display styles** — stacked bars, or four concentric dashboard-style rings.
+- **All three providers at a glance** — Claude Code (5h + weekly), Codex (5h + weekly), and Gemini via Antigravity (`agy`) or Gemini CLI, each with percentage and a local-time reset countdown.
+- **Two display styles** — stacked bars, or six concentric dashboard-style rings.
 - **Fuel or usage mode** — bars/rings can show *remaining* capacity (full → drains, like a fuel
   gauge) or *used* capacity (empty → fills).
-- **Minimalistic mode** — just four closely stacked bars or the rings on a transparent
+- **Minimalistic mode** — just six closely stacked bars or the rings on a transparent
   background. Hover to reveal settings, refresh, pin and hide controls.
 - **Resizable** — drag any edge or corner to scale the widget. Each layout and display mode
   remembers its own size.
@@ -31,8 +29,9 @@ time each window resets.
 |---|---|---|
 | Claude Code | Anthropic's OAuth usage endpoint (the same data `/usage` shows in the CLI), authenticated with your existing Claude Code login | Live, polled every 3 min |
 | Codex | The latest `rate_limits` snapshot in `~/.codex/sessions/**/*.jsonl` | Updates whenever Codex runs; the widget shows the snapshot age when stale |
+| Gemini | Antigravity CLI (`agy`) `statusLine` snapshot (`~/.gemini/antigravity-cli/usage-snapshot.json`, auto-wired into `settings.json`), with fallback to enterprise Gemini CLI (`~/.gemini/oauth_creds.json`) | Updates whenever `agy` runs (or live every 3 min on Gemini CLI) |
 
-Privacy: nothing is sent anywhere except the authenticated request to Anthropic's own API.
+Privacy: nothing is sent anywhere except authenticated requests to Anthropic's and Google's own APIs using your existing CLI logins.
 Codex data is read purely from local files. No telemetry, no third-party services.
 
 ### Claude credentials
@@ -55,8 +54,9 @@ different credentials file with the `USAGE_WIDGET_CLAUDE_CREDENTIALS` env var. C
 - [Node.js](https://nodejs.org) ≥ 22.12 and npm
 - A logged-in [Claude Code](https://claude.com/claude-code) (`claude`) for the Claude section
 - A [Codex CLI / app](https://openai.com/codex) that has run at least once for the Codex section
+- A logged-in [Antigravity CLI](https://antigravity.google) (`agy`) that has run at least once for the Gemini section (or an enterprise/API-key `gemini` CLI login)
 
-Either section degrades gracefully (with a hint) if its provider isn't set up.
+Each section degrades gracefully (with a hint) if its provider isn't set up.
 
 ## Install & run
 
@@ -132,6 +132,7 @@ main.js              Electron main process: window, tray, IPC, autostart
 preload.js           contextBridge API exposed to the renderer
 src/claude.js        Anthropic OAuth usage fetch, token refresh, cache + 429 backoff
 src/codex.js         Codex session-log scanner (latest rate_limits snapshot)
+src/gemini.js        Gemini CLI OAuth quota fetch, token refresh, cache + 429 backoff
 src/autostart.js     Cross-platform start-at-login
 src/store.js         Tiny JSON config store
 src/window-size.js   Presentation sizes and edge/corner resize geometry
