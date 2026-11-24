@@ -3,6 +3,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { execFile } = require('child_process');
 
 const store = require('./store');
 
@@ -28,8 +29,98 @@ let cachedProject = null;
 let cachedPlan = null;
 let lastError = null;
 let nextFetchAt = 0;
+let nextAgyRefreshAt = 0;
+let agyRefreshInFlight = null;
 let hookChecked = false;
 let hookConflict = false;
+
+const AGY_PTY_SCRIPT = [
+  'import os, pty, select, subprocess, sys, time',
+  'agy_bin, snap_path = sys.argv[1], sys.argv[2]',
+  'def mtime(p):',
+  '    try: return os.stat(p).st_mtime_ns',
+  '    except OSError: return 0',
+  't_before = mtime(snap_path)',
+  'master, slave = pty.openpty()',
+  'proc = subprocess.Popen([agy_bin], stdin=slave, stdout=slave, stderr=slave, close_fds=True)',
+  'os.close(slave)',
+  't0 = time.monotonic()',
+  'updated_at = None',
+  'exited_at = None',
+  'while time.monotonic() - t0 < 9.0:',
+  '    r, _, _ = select.select([master], [], [], 0.15)',
+  '    if r:',
+  '        try: os.read(master, 4096)',
+  '        except OSError: break',
+  '    now = time.monotonic()',
+  '    if updated_at is None and mtime(snap_path) > t_before:',
+  '        updated_at = now',
+  '    if exited_at is None and ((updated_at is not None and now - updated_at >= 0.4) or now - t0 >= 5.0):',
+  '        try:',
+  '            os.write(master, b"\\x04")',
+  '            time.sleep(0.12)',
+  '            os.write(master, b"\\x04")',
+  '        except OSError: pass',
+  '        exited_at = time.monotonic()',
+  '    if proc.poll() is not None:',
+  '        break',
+  '    if exited_at is not None and now - exited_at >= 1.5:',
+  '        break',
+  'if proc.poll() is None:',
+  '    proc.terminate()',
+  '    try: proc.wait(timeout=2)',
+  '    except Exception: proc.kill()',
+  'os.close(master)',
+].join('\n');
+
+function findAgyBinary() {
+  if (process.platform === 'win32') return null;
+  const candidates = [
+    path.join(os.homedir(), '.local', 'bin', 'agy'),
+    '/usr/local/bin/agy',
+    '/opt/homebrew/bin/agy',
+  ];
+  for (const dir of (process.env.PATH || '').split(path.delimiter).filter(Boolean)) {
+    candidates.push(path.join(dir, 'agy'));
+  }
+  for (const p of candidates) {
+    try {
+      fs.accessSync(p, fs.constants.X_OK);
+      return p;
+    } catch {
+      /* try next candidate */
+    }
+  }
+  return null;
+}
+
+function refreshAntigravitySnapshot() {
+  if (agyRefreshInFlight) return agyRefreshInFlight;
+  if (
+    hookConflict ||
+    process.env.USAGE_WIDGET_NO_HOOK_SETUP === '1' ||
+    process.env.USAGE_WIDGET_ANTIGRAVITY_SNAPSHOT ||
+    process.env.USAGE_WIDGET_GEMINI_CREDENTIALS
+  ) {
+    return Promise.resolve();
+  }
+  const agyBin = findAgyBinary();
+  if (!agyBin) return Promise.resolve();
+
+  nextAgyRefreshAt = Date.now() + POLL_MS;
+  agyRefreshInFlight = new Promise((resolve) => {
+    execFile(
+      'python3',
+      ['-c', AGY_PTY_SCRIPT, agyBin, AGY_SNAPSHOT_PATH],
+      { timeout: 12_000 },
+      () => {
+        agyRefreshInFlight = null;
+        resolve();
+      }
+    );
+  });
+  return agyRefreshInFlight;
+}
 
 function buildHookCommand() {
   if (process.platform === 'win32') return `node "${HOOK_SCRIPT_PATH}"`;
@@ -416,7 +507,14 @@ function fail(message, backoffMs) {
 async function getGeminiUsage(force = false) {
   ensureAgyStatusLineHook();
 
-  const agySnap = readAntigravitySnapshot();
+  const now = Date.now();
+  let agySnap = readAntigravitySnapshot();
+  const agyStale = !agySnap || !agySnap.capturedAt || now - agySnap.capturedAt >= POLL_MS;
+  if (fs.existsSync(AGY_CLI_DIR) && (force || (agyStale && now >= nextAgyRefreshAt))) {
+    await refreshAntigravitySnapshot();
+    agySnap = readAntigravitySnapshot();
+  }
+
   if (agySnap) {
     cached = agySnap;
     lastError = null;
@@ -426,7 +524,6 @@ async function getGeminiUsage(force = false) {
 
   if (cached === null) cached = store.get('geminiUsageCache', null) || undefined;
 
-  const now = Date.now();
   if (!force && now < nextFetchAt) {
     if (cached) return cached;
     if (lastError) return { error: lastError };

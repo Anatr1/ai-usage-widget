@@ -168,4 +168,26 @@ test('agy-quota-hook writes snapshot from stdin and getGeminiUsage reads it', as
   assert.equal(r.secondary.label, '7d');
   assert.equal(r.secondary.usedPercent, 25);
   assert.equal(r.secondary.resetsAt, Date.parse('2026-11-30T08:00:00Z'));
+
+  // Subsequent quick tick with plan_tier omitted/null preserves the previous planTier.
+  execFileSync(process.execPath, [hookPath], {
+    input: JSON.stringify({
+      product: 'antigravity',
+      plan_tier: null,
+      email: 'user@example.com',
+      quota: {
+        'gemini-5h': { remaining_fraction: 0.85, reset_in_seconds: 3600 },
+        'gemini-weekly': { remaining_fraction: 0.74, reset_time: '2026-11-30T08:00:00Z' },
+      },
+    }),
+    env: { ...process.env, USAGE_WIDGET_ANTIGRAVITY_SNAPSHOT: agySnapPath },
+  });
+
+  const r2 = await getGeminiUsage();
+  assert.equal(r2.plan, 'Pro');
+  assert.equal(r2.primary.label, '5h');
+  assert.equal(r2.primary.usedPercent, 15);
+  assert.equal(r2.secondary.usedPercent, 26);
+  const rawSnap = JSON.parse(fs.readFileSync(agySnapPath, 'utf8'));
+  assert.equal(rawSnap.email, undefined);
 });
